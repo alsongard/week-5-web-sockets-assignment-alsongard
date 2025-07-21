@@ -8,17 +8,59 @@ const bcrypt = require('bcrypt');
 const mongoose = require("mongoose");
 const User = require("./models/user.model");
 const Message = require("./models/message.model")
-
+const jwt = require("jsonwebtoken");
 
 app.use(express.json());
-app.use(cors());
+const corOptions = {
+    origin: "*"
+}
+app.use(cors(corOptions));
 const saltRound = 10;
 
 
-const io = new Server(httpServer, (socket)=>{
-    console.log(socket.id);
+const io = new Server(httpServer,{
+    cors:
+    {
+        origin:"*",
+        methods: ["POST", "GET"]
+    }
+});
+const msgArray=[]
+io.on("connection",  (socket)=>{
+    console.log(`SocketId ${socket.id}`);
+    // first messages : welcoming messages to the user:
+    const socketIdAbbrev = socket.id.slice(0,5)
+    socket.emit('welcomeMsg',socketIdAbbrev  )
 
-    // create a user
+
+    // notify other users of logging in
+    io.emit('userEntered',socket.id.slice(0,5));
+
+
+
+
+
+    // get all messages
+    
+    socket.on("receiveMsg",  (data)=>{ //listening for receiveMsg event from front-end
+        console.log(`socket.id for msg blw: ${socket.id}`)
+        console.log(data);
+        const msgDetails = {user_id: socket.id.slice(0, 5), msg:data.userMsg}
+        msgArray.push(msgDetails);
+        setInterval(()=>{
+            io.emit('allMsgs',msgArray);
+        }, 10000)
+    }
+    )
+    
+    // console.log(`On receiveMsg event: ${data}`);
+    socket.on("disconnect", (socket)=>{
+        console.log(`User ${socket.id} has been disconnected! `);
+    });
+
+    socket.on("connect_error", (err)=>{
+        console.log(`Error : ${err}`)
+    })
 })
 
 app.get("/", (req,res)=>{
@@ -26,7 +68,7 @@ app.get("/", (req,res)=>{
 })
 
 app.post("/register", async (req, res)=>{ // working successfully
-    // console.log(req.body)working successfully
+    console.log(req.body) //working successfully
     try
     {
         const {username, password} = req.body;
@@ -36,7 +78,7 @@ app.post("/register", async (req, res)=>{ // working successfully
         {
             const userPassHash = await bcrypt.hash(password, saltRound) // working=successfully
             const user_created = await User.create({username:username, password:userPassHash});
-            return res.status(200).json({success:true, data:user_created})
+            return res.status(200).json({success:true, msg:"User created successfully"})
         }
         return res.status(200).json({success:false, msg:"User already found!"})
 
@@ -53,15 +95,16 @@ app.post("/login",async (req, res)=>{ // working successfully
     {
         const {username, password} = req.body;
         const userFound = await User.findOne({username:username})
-        console.log(userFound); //testing:working==successfully
-        console.log(typeof(userFound)) // testing:object
+        // console.log(userFound); //testing:working==successfully
+        // console.log(typeof(userFound)) // testing:object
         if (userFound)
         {
-            console.log('checkign password match');
+            // console.log('checkign password match');
             const result =  await bcrypt.compare(password,userFound.password);
+            const userObject = {id:userFound._id}
+            const token = jwt.sign(userObject, process.env.JWT_SECRET)
             console.log(result);
-            return res.status(200).json({success:true, msg:'Success'});
-
+            return res.status(200).json({success:true, tokenGen:token, id:userFound._id});
         }
         else
         {
@@ -133,4 +176,4 @@ mongoose.connect(`mongodb+srv://${user}:${pass}@cluster0.glhr3fw.mongodb.net/Mes
 
 // console.log(process.env.PORT_NUMBER) testing:working successfully
 
-app.listen(process.env.PORT_NUMBER, ()=>{console.log("listening on http://localhost:5000")})
+httpServer.listen(process.env.PORT_NUMBER, ()=>{console.log("listening on http://localhost:5000")})
