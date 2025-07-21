@@ -132,7 +132,7 @@ export default function ChatPage()
                                 return(
                                     <div className={clsx(dataItem.user_id === welcomingMsg ? 'flex flex-row bg-slate-500 my-[10px] py-[5px] rounded-md w-1/2 justify-center ml-[500px]' : 'flex flex-row bg-slate-500 my-[10px] py-[5px] rounded-md w-1/2 justify-start')}  key={idx}>
                                      {/* <div className='flex flex-row bg-slate-500 my-[10px] py-[5px] rounded-md w-1/2' key={idx}> */}
-                                        <p>{dataItem.user_id}: {welcomingMsg}</p>
+                                        <p>{dataItem.user_id}:</p>
                                         <p>{dataItem.msg}</p>
                                     </div>
                                 )
